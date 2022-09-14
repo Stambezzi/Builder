@@ -3,31 +3,34 @@
 
 class CPersonLineage
 {
+    friend class CLineageBuilder;
 public:
-    CPersonLineage() = default;
-    CPersonLineage(const std::string& name) : fPersonName(name) {}
-
     std::string GetName() { return fPersonName; }
 
-    std::ostream& PrintLineage()
+    void PrintLineage( std::ostream& ost, short generation ) const
     {
-        std::ostream& ost = std::cout;
-
+        ost << std::string(generation, '\t');
+        generation++;
         ost << fPersonName << std::endl;
 
         for (const auto& child : fLineage)
         {
-            ost << "\t" << child.fPersonName << std::endl;
+            child.PrintLineage( ost, generation );
         }
-
-        return ost;
     }
 
     void AddChild(const std::string& childName)
     {
         fLineage.push_back(CPersonLineage(childName));
     }
+
+    void AddLineage(const CPersonLineage& lineage)
+    {
+        fLineage.push_back(lineage);
+    }
 private:
+    CPersonLineage(const std::string& name) : fPersonName(name) {}
+
     std::string fPersonName;
     std::vector<CPersonLineage> fLineage;
 };
@@ -35,29 +38,53 @@ private:
 class CLineageBuilder
 {
 public:
-    CLineageBuilder() = default;
-    CLineageBuilder(const std::string& progenatorName) : fProgenitor(progenatorName) {};
+    static CLineageBuilder Build(const std::string& progenitorName)
+    {
+        return { progenitorName };
+    }
+
+    operator CPersonLineage()
+    {
+        return fProgenitor;
+    }
 
     void PrintLineage()
     {
-        std::ostream& ost = fProgenitor.PrintLineage();
+        std::ostream& ost = std::cout;
+
+        fProgenitor.PrintLineage(ost, 0);
     }
 
-    void AddChild(const std::string& childName)
+    CLineageBuilder& AddChild(const std::string& childName)
     {
         fProgenitor.AddChild(childName);
+        return *this;
+    }
+
+    CLineageBuilder& AddLineage(const CLineageBuilder& builder)
+    {
+        fProgenitor.AddLineage(builder.fProgenitor);
+        return *this;
     }
 
 private:
+    CLineageBuilder(const std::string& progenitorName) : fProgenitor(progenitorName) {};
+
     CPersonLineage fProgenitor;
 };
 
 int main()
 {
-    CLineageBuilder builder("Nikola");
-    builder.AddChild("Joro");
-    builder.AddChild("Miro");
+    CLineageBuilder builder = CLineageBuilder::Build("Nikola")
+                                .AddLineage(CLineageBuilder::Build("Joro")
+                                                .AddChild("Nikola")
+                                                .AddChild("Ralica"))
+                                .AddLineage(CLineageBuilder::Build("Miro")
+                                                .AddChild("Vanesa")
+                                                .AddChild("Boyan"));
 
     builder.PrintLineage();
+
+    CPersonLineage first = builder;
 }
 
